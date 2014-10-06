@@ -34,6 +34,11 @@ import * as messageMod from './message';
 export const message = messageMod;
 
 /**
+ * @see module:stream
+ * @name module:openpgp.stream
+ */
+module.exports.stream = require('./stream');
+/**
  * @see module:cleartext
  * @name module:openpgp.cleartext
  */
