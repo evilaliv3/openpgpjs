@@ -23,5 +23,6 @@
 describe('Unit Tests', function () {
   require('./crypto');
   require('./general');
+  require('./stream');
   require('./worker');
 });

@@ -60,6 +60,7 @@
     "zlibjs": "~0.2.0"
   },
   "dependencies": {
+    "buffer": "~3.0.2",
     "node-fetch": "^1.3.3",
     "node-localstorage": "~1.1.2"
   },
