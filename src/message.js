@@ -282,7 +282,6 @@ export function encryptSessionKey(sessionKey, symAlgo, publicKeys, passwords) {
  * @return {module:message~Message}      new message with signed content
  */
 Message.prototype.sign = function(privateKeys) {
-
   var packetlist = new packet.List();
 
   var literalDataPacket = this.packets.findPacket(enums.packet.literal);
