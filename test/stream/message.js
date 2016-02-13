@@ -1,6 +1,6 @@
 'use strict';
 
-var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('openpgp');
+var openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
 var enums = openpgp.enums,
   crypto = openpgp.crypto,
@@ -87,48 +87,40 @@ describe("Encrypted message", function() {
   var privKey = openpgp.key.readArmored(priv_key).keys[0];
   privKey.decrypt('hello world');
 
-  var integrity_protect_configs = [true, false];
+  openpgp.config.integrity_protect = true;
 
-  integrity_protect_configs.forEach(function(config) {
+  it("should decrypt to the same content that was encrypted", function(done) {
+    var stream_encrypted_buffer = new Uint8Array(0);
 
-    openpgp.config.integrity_protect = config;
+    var message_stream = new openpgp.stream.MessageStream([pubKey],
+                                                          plaintext.length,
+                                                          'msg.txt',
+                                                          {encoding: 'binary'});
 
-    it("should decrypt to the same content that was encrypted (integrity_protected: " + config + ")", function(done) {
-      var stream_encrypted_buffer = new Uint8Array(0);
-
-      var message_stream = new openpgp.stream.MessageStream([pubKey],
-                                                            plaintext.length,
-                                                            'msg.txt',
-                                                            {encoding: 'binary'});
-
-      message_stream.setOnDataCallback(function(d) {
-        var tmp = new Uint8Array(stream_encrypted_buffer.length + d.length);
-        tmp.set(stream_encrypted_buffer, 0);
-        tmp.set(d, stream_encrypted_buffer.length);
-        stream_encrypted_buffer = tmp;
-      });
-
-      message_stream.setOnEndCallback(function() {
-        var packetList = new openpgp.packet.List(),
-          encrypted_message;
-
-        packetList.read(util.Uint8Array2str(stream_encrypted_buffer));
-        encrypted_message = new openpgp.message.Message(packetList);
-
-        openpgp.decryptMessage(privKey, encrypted_message, 'binary').then(function(decrypted) {
-          expect(decrypted).equal(plaintext);
-          done();
-        });
-      });
-
-      for (var i = 0; i < repetitions; i++) {
-        message_stream.write(util.str2Uint8Array(plaintext_part));
-      }
-
-      message_stream.end();
-
+    message_stream.setOnDataCallback(function(d) {
+      var tmp = new Uint8Array(stream_encrypted_buffer.length + d.length);
+      tmp.set(stream_encrypted_buffer, 0);
+      tmp.set(d, stream_encrypted_buffer.length);
+      stream_encrypted_buffer = tmp;
     });
 
-  });
+    message_stream.setOnEndCallback(function() {
+      var packetList = new openpgp.packet.List(),
+          encrypted_message;
 
+      packetList.read(stream_encrypted_buffer);
+      encrypted_message = new openpgp.message.Message(packetList);
+
+      openpgp.decrypt({privateKey: privKey, message: encrypted_message, format: 'binary'}).then(function(decrypted) {
+        expect(util.bin2str(decrypted.data)).equal(plaintext);
+        done();
+      });
+    });
+
+    for (var i = 0; i < repetitions; i++) {
+      message_stream.write(util.str2Uint8Array(plaintext_part));
+    }
+
+    message_stream.end();
+  });
 });

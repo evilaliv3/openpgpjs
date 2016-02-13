@@ -1,14 +1,16 @@
 'use strict';
 
-var util = require('../util.js'),
-  crypto_stream = require('./crypto.js'),
-  packet = require('../packet'),
-  enums = require('../enums.js'),
-  armor = require('../encoding/armor.js'),
-  config = require('../config'),
-  crypto = require('../crypto'),
-  keyModule = require('../key.js'),
-  message = require('../message.js');
+import util from '../util.js';
+import crypto_stream from './crypto.js'
+import packet from '../packet';
+import packetParser from '../packet/packet.js';
+import enums from'../enums.js';
+import armor from '../encoding/armor.js';
+import config from '../config';
+import crypto from '../crypto';
+import forge from 'node-forge';
+import message from '../message.js';
+import * as keyModule from '../key.js';
 
 function MessageStream(keys, file_length, filename, opts) {
   var self = this;
@@ -26,25 +28,23 @@ function MessageStream(keys, file_length, filename, opts) {
   if (config.integrity_protect) {
     self.opts.resync = false;
     var prefixrandom = self.opts.prefixRandom;
-    var prefix = prefixrandom + prefixrandom.charAt(prefixrandom.length - 2) + prefixrandom.charAt(prefixrandom.length - 1);
-    this.hash = crypto.hash.forge_sha1.create();
-    this.hash.update(prefix);
+    var repeat = new Uint8Array([prefixrandom[prefixrandom.length - 2], prefixrandom[prefixrandom.length - 1]]);
+    var prefix = util.concatUint8Array([prefixrandom, repeat]);
+    this.hash = forge.sha1.create();
+    this.hash.update(util.Uint8Array2str(prefix));
   }
 
   this.cipher = new crypto_stream.CipherFeedback(self.opts);
   this.fileLength = file_length;
   this.keys = keys;
 
-  var encrypted_packet_header_part2 = util.str2Uint8Array(
-    String.fromCharCode(enums.write(enums.literal, self.opts.encoding)) +
-    String.fromCharCode(filename.length) +
-    filename +
-    util.writeDate(new Date())
-  );
+  var encrypted_packet_header_part2 =  util.concatUint8Array(
+    [util.str2Uint8Array(String.fromCharCode(enums.write(enums.literal, self.opts.encoding)) +
+                         String.fromCharCode(filename.length) +
+                         filename),
+     util.writeDate(new Date())]);
 
-  var encrypted_packet_header_part1 = util.str2Uint8Array(
-    packet.Packet.writeHeader(enums.packet.literal, encrypted_packet_header_part2.length + this.fileLength)
-  );
+  var encrypted_packet_header_part1 = packetParser.writeHeader(enums.packet.literal, encrypted_packet_header_part2.length + this.fileLength);
 
   this.encrypted_packet_header = new Uint8Array(encrypted_packet_header_part1.length + encrypted_packet_header_part2.length);
   this.encrypted_packet_header.set(encrypted_packet_header_part1, 0);
@@ -70,13 +70,12 @@ function MessageStream(keys, file_length, filename, opts) {
   });
 
   this.header = packetList.write();
-  this.first_packet_header;
 
   if (config.integrity_protect) {
     packet_len += 1 + 20 + 2;
-    this.first_packet_header = packet.Packet.writeHeader(enums.packet.symEncryptedIntegrityProtected, packet_len) + String.fromCharCode(1);
+    this.first_packet_header = util.concatUint8Array([packetParser.writeHeader(enums.packet.symEncryptedIntegrityProtected, packet_len), new Uint8Array([1])]);
   } else {
-    this.first_packet_header = packet.Packet.writeHeader(enums.packet.symmetricallyEncrypted, packet_len);
+    this.first_packet_header = packetParser.writeHeader(enums.packet.symmetricallyEncrypted, packet_len);
   }
 
   this.size = this.header.length + this.first_packet_header.length + packet_len;
@@ -98,9 +97,8 @@ MessageStream.prototype.write = function(chunk) {
   }
 
   if (!this.headerWritten) {
-
     if (this.onDataFn) {
-      this.onDataFn(util.str2Uint8Array(this.header + this.first_packet_header));
+      this.onDataFn(util.concatUint8Array([this.header, this.first_packet_header]));
     }
 
     var tmp = new Uint8Array(this.encrypted_packet_header.length + chunk.length);

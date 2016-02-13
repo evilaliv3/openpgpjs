@@ -1,11 +1,11 @@
 'use strict';
 
-var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('openpgp');
+var openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
-var   config = openpgp.config,
-  crypto = openpgp.crypto,
-  enums = openpgp.enums,
-  util = openpgp.util;
+var config = openpgp.config,
+    crypto = openpgp.crypto,
+    enums = openpgp.enums,
+    util = openpgp.util;
 
 var chai = require('chai'),
 	expect = chai.expect;
@@ -40,8 +40,8 @@ describe("CFB Stream", function() {
       });
 
       cs.setOnEndCallback(function() {
-        var decrypted = crypto.cfb.decrypt(opts.algo, opts.key, util.bin2str(encrypted_data), true);
-        expect(decrypted.join("")).equal(plaintext);
+        var decrypted = crypto.cfb.decrypt(opts.algo, opts.key, encrypted_data, true);
+        expect(util.bin2str(decrypted)).equal(plaintext);
         done();
       });
 
@@ -69,8 +69,8 @@ describe("CFB Stream", function() {
       });
 
       cs.setOnEndCallback(function() {
-        var decrypted = crypto.cfb.decrypt(opts.algo, opts.key, util.bin2str(encrypted_data), true);
-        expect(decrypted.join("")).equal(plaintext);
+        var decrypted = crypto.cfb.decrypt(opts.algo, opts.key, encrypted_data, true);
+        expect(util.bin2str(decrypted)).equal(plaintext);
         done();
       });
 
@@ -101,8 +101,8 @@ describe("CFB Stream", function() {
       });
 
       cs.setOnEndCallback(function() {
-        var decrypted = crypto.cfb.decrypt(opts.algo, opts.key, util.bin2str(encrypted_data), false);
-        expect(decrypted.join("")).equal(plaintext);
+        var decrypted = crypto.cfb.decrypt(opts.algo, opts.key, encrypted_data, false);
+        expect(util.bin2str(decrypted)).equal(plaintext);
         done();
       });
 

@@ -1,6 +1,7 @@
 'use strict';
 
-var util = require('../util');
+import crypto from '../crypto';
+import util from '../util.js';
 
 function CipherFeedback(opts) {
   this.algo = opts.algo;
@@ -45,7 +46,12 @@ CipherFeedback.prototype._encryptFirstBlock = function(chunk) {
   var key = this.sessionKey;
   var block_size = this.blockSize;
 
-  prefixrandom = prefixrandom + prefixrandom.charAt(block_size - 2) + prefixrandom.charAt(block_size - 1);
+  var new_prefix = new Uint8Array(prefixrandom.length + 2);
+  new_prefix.set(prefixrandom);
+  new_prefix[prefixrandom.length] = prefixrandom[block_size-2];
+  new_prefix[prefixrandom.length+1] = prefixrandom[block_size-1];
+  prefixrandom = new_prefix;
+
   var ciphertext = new Uint8Array(chunk.length + 2 + block_size * 2);
   var i, n, begin;
   var offset = resync ? 0 : 2;
@@ -62,7 +68,7 @@ CipherFeedback.prototype._encryptFirstBlock = function(chunk) {
   //     the plaintext to produce C[1] through C[BS], the first BS octets
   //     of ciphertext.
   for (i = 0; i < block_size; i++) {
-    ciphertext[i] = this.feedbackRegisterEncrypted[i] ^ prefixrandom.charCodeAt(i);
+    ciphertext[i] = this.feedbackRegisterEncrypted[i] ^ prefixrandom[i];
   }
 
   // 4.  FR is loaded with C[1] through C[BS].
@@ -75,8 +81,8 @@ CipherFeedback.prototype._encryptFirstBlock = function(chunk) {
   // 6.  The left two octets of FRE get xored with the next two octets of
   //     data that were prefixed to the plaintext.  This produces C[BS+1]
   //     and C[BS+2], the next two octets of ciphertext.
-  ciphertext[block_size] = this.feedbackRegisterEncrypted[0] ^ prefixrandom.charCodeAt(block_size);
-  ciphertext[block_size + 1] = this.feedbackRegisterEncrypted[1] ^ prefixrandom.charCodeAt(block_size + 1);
+  ciphertext[block_size] = this.feedbackRegisterEncrypted[0] ^ prefixrandom[block_size];
+  ciphertext[block_size + 1] = this.feedbackRegisterEncrypted[1] ^ prefixrandom[block_size + 1];
 
   if (resync) {
     // 7.  (The resync step) FR is loaded with C[3] through C[BS+2].
@@ -106,6 +112,7 @@ CipherFeedback.prototype._encryptBlock = function(chunk) {
     block_size = this.blockSize,
     offset = this.resync ? 0 : 2,
     i, n, begin;
+
   for (n = 0; n < chunk.length + offset; n += block_size) {
     begin = n;
     // 10. FR is loaded with C[BS+3] to C[BS + (BS+2)] (which is C11-C18 for
@@ -164,7 +171,7 @@ CipherFeedback.prototype.write = function(chunk) {
 
   while (this._buffered_total >= this.blockSize) {
     this._current_block = (this._current_block == 0) ? 1 : 0;
-    var buf = new Uint8Array(this.blockSize); //this._blocks[this._current_block];
+    var buf = new Uint8Array(this.blockSize);
     var missing = this.blockSize;
     var offset = 0;
     for (var i = 0; i < this._buffers.length; i++) {
